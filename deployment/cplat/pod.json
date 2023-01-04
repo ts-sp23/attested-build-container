@@ -1,0 +1,17 @@
+{
+    "metadata": {
+        "name": "transparency",
+        "namespace": "default",
+        "attempt": 1
+    },
+    "linux": {
+        "security_context": {
+            "privileged": true
+        }
+    },
+    "annotations" : {
+	    "io.microsoft.virtualmachine.lcow.no_security_hardware" : "true"
+    }
+}
+
+

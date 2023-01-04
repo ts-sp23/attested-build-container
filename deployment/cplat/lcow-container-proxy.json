@@ -1,0 +1,21 @@
+{
+    "metadata": {
+        "name": "transparency-proxy"
+    },
+    "image": {
+        "image": "parmaregistry.azurecr.io/transparency-proxy:latest"
+    },
+    "linux": {
+        "security_context": {
+            "privileged": true
+        }
+    },
+    "mounts": [],
+    "command": [
+        "docker-entrypoint.sh",
+        "mitmdump",
+        "--set stream_large_bodies=10m",
+        "-s",
+        "issuer.py"
+    ]
+}

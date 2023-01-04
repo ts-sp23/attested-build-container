@@ -1,0 +1,144 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "name": {
+      "defaultValue": "transparent-build-aci",
+      "type": "string",
+      "metadata": {
+        "description": "Name for the container group"
+      }
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "type": "string",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "containerRegistry": {
+      "defaultValue": "secureString",
+      "type": "string",
+      "metadata": {
+        "description": "The container registry login server."
+      }
+    },
+    "containerRegistryUsername": {
+      "defaultValue": "secureString",
+      "type": "string",
+      "metadata": {
+        "description": "The container registry username."
+      }
+    },
+    "containerRegistryPassword": {
+      "defaultValue": "secureString",
+      "type": "string",
+      "metadata": {
+        "description": "The container registry password."
+      }
+    },
+    "restartPolicy": {
+      "defaultValue": "Never",
+      "allowedValues": [
+        "Always",
+        "Never",
+        "OnFailure"
+      ],
+      "type": "string",
+      "metadata": {
+        "description": "The behavior of Azure runtime if container has stopped."
+      }
+    },
+    "ccePolicy": {
+      "defaultValue": "secureString",
+      "type": "string",
+      "metadata": {
+        "description": "cce policy"
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2022-04-01-preview",
+      "name": "[parameters('name')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "confidentialComputeProperties": {
+          "isolationType": "SevSnp",
+          "ccePolicy": "[parameters('ccePolicy')]"
+        },
+        "initContainers": [
+          {
+            "name": "transparency-init",
+            "properties": {
+              "image": "[concat(parameters('containerRegistry'), '/transparency-init:latest')]",
+              "command": [
+                "/bin/sh",
+                "setup-iptables.sh"
+              ]
+            }
+          }
+        ],
+        "containers": [
+          {
+            "name": "transparent-build",
+            "properties": {
+              "image": "[concat(parameters('containerRegistry'), '/transparent-build:latest')]",
+              "command": [
+                "/bin/sh",
+                "-c",
+                "./run.sh"
+              ],
+              "environmentVariables": [],
+              "ports": [],
+              "resources": {
+                "requests": {
+                  "cpu": "1",
+                  "memoryInGB": "2"
+                }
+              }
+            }
+          },
+          {
+            "name": "transparency-proxy",
+            "properties": {
+              "image": "[concat(parameters('containerRegistry'), '/transparency-proxy:latest')]",
+              "command": [
+                "/bin/sh",
+                "bootstrap.sh"
+              ],
+              "environmentVariables": [
+                {
+                  "name": "MAA_ENDPOINT",
+                  "value": "sharedneu.neu.attest.azure.net"
+                }
+              ],
+              "ports": [
+                {
+                  "port": "15001",
+                  "protocol": "TCP"
+                }
+              ],
+              "resources": {
+                "requests": {
+                  "cpu": "1",
+                  "memoryInGB": "2"
+                }
+              }
+            }
+          }
+        ],
+        "osType": "Linux",
+        "restartPolicy": "[parameters('restartPolicy')]",
+        "imageRegistryCredentials": [
+          {
+            "server": "[parameters('containerRegistry')]",
+            "username": "[parameters('containerRegistryUsername')]",
+            "password": "[parameters('containerRegistryPassword')]"
+          }
+        ]
+      }
+    }
+  ]
+}

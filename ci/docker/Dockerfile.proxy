@@ -1,0 +1,40 @@
+# Image for building the sidecar executable.
+FROM ubuntu:20.04 AS build-image
+
+# Install prerequisities.
+RUN apt-get update -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install \
+    software-properties-common build-essential python3 python3-pip
+
+WORKDIR /root 
+COPY proxy/tools tools
+
+# Build scitt client module
+COPY external/scitt-cts scitt-cts
+WORKDIR /root/scitt-cts/pyscitt
+RUN python3 setup.py bdist_wheel
+
+WORKDIR /root/tools/get-snp-report
+RUN make
+
+FROM mitmproxy/mitmproxy
+
+RUN apt-get update && apt-get -y upgrade && apt-get install -y curl gcc
+
+COPY --from=build-image /root/scitt-cts/pyscitt/dist/pyscitt-0.0.1-py3-none-any.whl . 
+RUN pip3 install pyscitt-0.0.1-py3-none-any.whl
+
+COPY --from=build-image /root/tools/get-snp-report/bin/get-snp-report /home/mitmproxy/get-snp-report
+
+COPY proxy/mitmproxy-10.0.0.dev0-py3-none-any.whl /home/mitmproxy/mitmproxy-10.0.0.dev0-py3-none-any.whl
+RUN pip3 install /home/mitmproxy/mitmproxy-10.0.0.dev0-py3-none-any.whl
+
+COPY --chown=mitmproxy:mitmproxy proxy/issuer.py /home/mitmproxy/issuer.py
+COPY --chown=mitmproxy:mitmproxy --chmod=755 proxy/sign.sh /home/mitmproxy/sign.sh
+COPY --chown=mitmproxy:mitmproxy proxy/mitmproxy-ca-cert.crt /home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.crt 
+COPY --chown=mitmproxy:mitmproxy proxy/mitmproxy-ca-cert.pem /home/mitmproxy/.mitmproxy/mitmproxy-ca-cert.pem 
+COPY --chown=mitmproxy:mitmproxy proxy/mitmproxy-ca.pem /home/mitmproxy/.mitmproxy/mitmproxy-ca.pem 
+COPY --chown=mitmproxy:mitmproxy proxy/mitmproxy-dhparam.pem /home/mitmproxy/.mitmproxy/mitmproxy-dhparam.pem
+COPY --chown=mitmproxy:mitmproxy proxy/policy.cose /home/mitmproxy/policy.cose
+WORKDIR /home/mitmproxy
+ENTRYPOINT [ "" ]

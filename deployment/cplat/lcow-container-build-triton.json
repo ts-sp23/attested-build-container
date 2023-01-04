@@ -1,0 +1,48 @@
+{
+    "metadata": {
+        "name": "transparent-build"
+    },
+    "image": {
+        "image": "parmaregistry.azurecr.io/transparent-build"
+    },
+    "linux": {
+        "security_context": {
+            "privileged": true
+        }
+    },
+    "envs": [
+        {
+            "key": "GITHUB_REPO",
+            "value": "github.com/kapilvgit/triton-server"
+        },
+        {
+            "key": "BUILD_DIR",
+            "value": "."
+        },
+        {
+            "key": "CONTEXT_DIR",
+            "value": "."
+        },
+        {
+            "key": "DOCKER_FILE",
+            "value": "Dockerfile"
+        },
+        {
+            "key": "BRANCH",
+            "value": "r22.02"
+        },
+        {
+            "key": "BUILDCMD",
+            "value": "python3 ./build.py -v --backend=tensorflow2 --extra-backend-cmake-arg=tensorflow2:TRITON_TENSORFLOW_INSTALL_EXTRA_DEPS=ON --build-dir=build"
+        },
+        {
+            "key": "TARGET",
+            "value": "tritonserver"
+        }
+    ],
+    "command": [
+        "/bin/sh",
+        "-c",
+        "run.sh"
+    ]
+}

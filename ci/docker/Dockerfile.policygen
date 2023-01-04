@@ -1,0 +1,19 @@
+FROM docker:dind
+
+# Install dependencies
+RUN apk add curl git 
+RUN apk add gcc musl-dev python3-dev py3-pip libffi-dev openssl-dev cargo make
+
+# Install Azure CLI
+RUN pip install --upgrade pip
+RUN pip install azure-cli
+RUN pip install pathos
+
+# Install az conf com extension
+RUN az extension add --source https://acccliazext.blob.core.windows.net/confcom/confcom-0.2.1-py3-none-any.whl -y
+
+COPY ./run.sh run.sh
+
+# Install proxy certificate
+COPY mitmproxy-ca-cert.crt /usr/local/share/ca-certificates
+RUN cat /usr/local/share/ca-certificates/mitmproxy-ca-cert.crt >> /etc/ssl/certs/ca-certificates.crt

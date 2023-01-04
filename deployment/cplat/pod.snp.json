@@ -1,0 +1,22 @@
+{
+    "metadata": {
+        "name": "transparent_build",
+        "namespace": "default",
+        "attempt": 1
+    },
+    "linux": {
+        "security_context": {
+            "privileged": true
+        }
+    },
+    "annotations" : {
+        "io.microsoft.virtualmachine.lcow.bootfilesrootpath" : "e:\\ContainerPlat\\LinuxBootFiles",
+        "io.microsoft.virtualmachine.lcow.no_security_hardware" : "false",
+        "io.microsoft.virtualmachine.storage.scratch.encrypted" : "true",        
+	    "io.microsoft.virtualmachine.lcow.securitypolicy" : "eyJhbGxvd19hbGwiOnRydWUsImNvbnRhaW5lcnMiOnsibGVuZ3RoIjowLCJlbGVtZW50cyI6bnVsbH19",
+        "io.microsoft.virtualmachine.computetopology.memory.sizeinmb" : "65536",
+        "io.microsoft.container.processor.count" : "32"
+    }
+}
+
+

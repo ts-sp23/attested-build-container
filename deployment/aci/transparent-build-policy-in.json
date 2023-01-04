@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "containers": [
+    {
+      "containerImage": "parmaregistry.azurecr.io/transparency-init:latest",
+      "environmentVariables": [],
+      "command": [
+        "/bin/sh",
+        "setup-iptables.sh"
+      ]
+    },
+    {
+      "containerImage": "parmaregistry.azurecr.io/transparency-proxy:latest",
+      "command": [
+        "/bin/sh",
+        "bootstrap.sh"
+      ],
+      "environmentVariables": [
+        {
+          "name": "MAA_ENDPOINT",
+          "value": "sharedneu.neu.attest.azure.net",
+          "strategy": "string"
+        }
+      ]
+    },
+    {
+      "containerImage": "parmaregistry.azurecr.io/transparent-build:latest",
+      "command": [
+        "/bin/sh",
+        "-c",
+        "./run.sh"
+      ],
+      "environmentVariables": []
+    }
+  ]
+}

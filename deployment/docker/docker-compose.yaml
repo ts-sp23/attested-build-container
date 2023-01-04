@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  transparency-proxy:
+    image: transparency-proxy
+    command: [ "docker-entrypoint.sh", "mitmdump", "--set", "stream_large_bodies=10m", "-s", "issuer.py" ]
+    network_mode: "host"
+    environment:
+      - PYTHONUNBUFFERED=1
+  transparent-build:
+    image: transparent-build
+    command: [ "./run.sh" ]
+    network_mode: "host"
+    privileged: true
+    env_file:
+      - ${ENV_FILE}

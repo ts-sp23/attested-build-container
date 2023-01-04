@@ -1,0 +1,249 @@
+# An assorted collection of claims covering the "paper experiments", 
+# focusing on authorizing the automated update of CCF containers built from a new source release. 
+# (other build steps are much the same)
+
+# We use a pseudo-yaml syntax
+
+# "whatever" = logged for auditing only, unparsed in the experiment 
+# "config" =  policy for container groups, as our focus is on registration
+# "release" = instead of source project release 
+
+# We systematically omit { alg, signature, and kid } in claims 
+
+# In delegation claims, we rely on implicit, general-purpose javascript code parameterized by the rest of the payload,
+# and we outline what that code does in comments. 
+
+--- # Authorized UVM and runtime (for everyone)
+cty: VM measurement
+issuer: parma.dev
+feed: uvm
+info: 
+  version: 1.2
+  time-issued: 2022-04-10
+payload: 
+  hardware-policy: binary # auxiliary input for attestation verification, to ensure e.g. microcode updates  
+  measurement: sha384 # digest of initial VM image
+  log: whatever
+---
+# We'd like to have multiple co-existing UVMs (say 1.1 and 1.2) 
+# and still be able to un-authorizing a UVM once retired (say 1.0)
+# but the registration/freshness policy is not directly implementable
+# based just on a shared feed.
+
+--- # Source release claim (issued by a container pod on behalf of CCF) 
+cty: release
+issuer: release-for:ccf.dev 
+feed: https://github.com/microsoft/CCF
+info: 
+  version: 3.2 # aka github release tag 
+  attestation: ... 
+payload:
+  commit: x0ea43db84
+  log: whatever, including github's signature or more
+---
+
+--- # Source release delegation policy for the CCF project.  
+cty: delegation
+issuer: ccf.dev
+feed: release-for 
+payload: 
+  authorization: 
+    code-for-release-version
+    # the claim to register must pass this javascript policy (inlined, but hopefully re-usable across projects)
+    # reading and checking the version to be released from the attested config, 
+    # setting the other init-time environment variables as outlined below, 
+    # and using these assignment to verify both the attested config and the claim to be registered 
+  hardware-policy: binary 
+  uvm-policy:
+    # verify claim, filter its contents, then use its sha384 as input for attestation  
+    claim-policy: [ cty: VM measurement, issuer: parma.dev, feed: uvm, freshness: some ] 
+    min-version: 1.1
+  config-input: # to be matched against the config claim payload
+    config: json-input # abstract configuration selected 
+    container-image-policy: 
+      # each image named in the input must be supported by a claim
+      # (we could also extend the json-input format with those) 
+      [ [ cty: container image, issuer: ccf.dev, feed: parmaregistry/ccf-source-release ],
+        [ cty: container image, issuer: envoy-build-for:parma.dev, feed: parmaregistry/envoy ],
+        [ cty: container image, issuer: issuer-build-for:parma.dev, feed: parmaregistry/issuer ] ]   
+  config-issuance-policy: # the resulting runtime config must be supported by a claim
+    cty: pod config, 
+    issuer: config-for:parma.dev
+    feed: ccf release  
+    version: 1.0 # fixed for limiting trust in parma.dev
+  env: 
+    # specializing the pod and the claims is may issue for releasing CCF projects 
+    feed: https://github.com/microsoft/CCF
+    min-version: 3.0 
+    command: release validation for ccf $version, issuing a claim with payload [ commit, opaque log ]  
+    proxy: access only https://github.com # restrictive envoy config
+---
+
+--- # Config for source release for the CCF project, produced by securitypolicy tool and enforced by containerd. 
+cty: pod config # alias for "parma container group runtime policy"
+issuer: config-for:parma.dev
+feed: ccf release  
+info: 
+  version: 1.0
+  time-issued: 2022-09-01
+  attestation: (...) 
+payload: 
+  uvm: # to be enforced by this UVM 
+    version: 1.2
+    measurement: x1234 
+  input: # included only for replayability and correlation with delegation policy
+  output: 
+    # policy tool output (json or rego) embedding dm-verify roots for all container layers,
+    # but still with default values for some env variables 
+    lcow-security-policy: "eyJhbGxvd19hbGwiOmZhbHNl..." 
+    log: whatever # logging e.g. the actual UVM and container-image claims 
+---
+
+--- # Config-issuance delegation policy for parma container pods (for everyone)
+cty: delegation
+issuer: parma.dev 
+feed: config policy
+info:
+  version: 1.0 # synced with the fixed config 
+payload: 
+  authorization: code-for-config
+    # issues config claims on *any* config-input
+    # the feed and version are convenient but untrusted (we could use a config-input hash instead)   
+  sev-snp-policy: ... 
+  uvm-policy: ... 
+  config-input: # to be matched against the config claim payload
+    config: json-input # abstract configuration selected 
+    container-image-policy: 
+      [ [ cty: container image, issuer: parma.dev, feed: parmaregistry/securitypolicytool  ],
+        [ cty: container image, issuer: parma.dev, feed: parmaregistry/envoy ],
+        [ cty: container image, issuer: parma.dev, feed: parmaregistry/issuer ] ]   
+  config-issuance-policy: # the resulting runtime config must be supported by a claim
+    cty: pod config, 
+    issuer0: parma.dev # direct, not delegated, to break the recursion
+    issuer: config-for:parma.dev # bootstrapping and self-update
+    feed: config issuance 
+    version: 1.0 # fixed for limiting trust in parma.dev
+  env: 
+    proxy: access only https://parmaregistry # restrictive envoy config
+---
+
+--- # Fixed config for bootstrapping config issuance (for everyone)
+cty: config
+issuer: parma.dev 
+feed: config issuance
+info: 
+  version: 1.0
+  time-issued: 2022-09-01
+payload: 
+  uvm: # to be enforced by this UVM 
+    version: 1.2
+    sha386: x1234 
+  input:  
+    config: json-input # policy tool input, with container names and claim policies, e.g.
+    container-image-policy: [
+      # each image must be supported by a claim: 
+      [ cty: container image, issuer: parma.dev, feed: parmaregistry/securitypolicytool ],
+      [ cty: container image, issuer: parma.dev, feed: parmaregistry/envoy ],
+      [ cty: container image, issuer: parma.dev, feed: parmaregistry/issuer ]]  
+  output: 
+    # policy tool output (detailed json or rego with layer hashes)
+    lcow-security-policy: "eyJhbGxvd19hbGwiOmZhbHNl..." 
+    log: whatever # logging e.g. actual container claims
+---
+
+--- # Bootstrapped config issuance (for everyone)
+cty: config
+issuer: config-for:parma.dev 
+feed: config issuance
+info: 
+  version: 1.1
+  time-issued: 2022-09-02
+  attestation: ... 
+payload: 
+  uvm: 
+  input: (as above)
+  output: 
+    lcow-security-policy: (as above, at least initially)  
+    log: whatever # logging e.g. actual container claims
+---
+
+--- # Image-build for the CCF container
+cty: container image
+issuer: image-build-for:ccf.dev
+feed: ccf image 
+info:
+  version: ccf-3.1.1
+  attestation: (...)
+payload:
+  digest: sha256sum(saved container image)
+  log: whatever, including claims for everything installed in the process
+---
+
+--- # Delegation policy for building the CCF container from source. We may also continue from an attested build of ccf.deb 
+cty: delegation
+issuer: ccf.dev
+feed: image-build-for
+payload: 
+  authorization: image-build-registration-script
+    # host selects source $commit released as $version to build the image 
+    # we verify a fresh release claim for ($version, $commit)
+    # we verify the claim to be registered is of the form
+    # [ cty: container image, issuer: image-build-policy:ccf.dev, feed: ccf image, info.version: $version ]
+  hardware-policy: (...)
+  uvm-policy: (...)
+  config-issuance-policy: (...) 
+  config-input: 
+    config: json-input 
+    container-image-policy: 
+      [ [ cty: container image, issuer: ccf.dev, feed: parmaregistry/ccf-dind ],
+        [ cty: container image, issuer: build-envoy-for:parma.dev, feed: parmaregistry/envoy ],
+        [ cty: container image, issuer: build-issuer-for:parma.dev, feed: parmaregistry/issuer ] ]   
+  source-release-claim-policy:  
+    cty: release
+    issuer: release-for:ccf.dev
+    feed: https://github.com/microsoft/CCF 
+    min-version: 3.0
+  env:
+    project: https://github.com/microsoft/CCF
+    feed: ccf image 
+    script: apt-get, git clone $project $commit, make container, push container, issue container-image claim  
+    proxy: download whatever you need # envoy config
+---
+
+--- # Transparent fetch claim. Unique for each URI.  
+cty: fetch
+issuer: fetch-policy:proxy.dev
+feed: URI
+info:
+  time-issued: 
+  attestation: 
+payload:
+  document: sha256sum 
+  log: certificate chains for the requester and the provider
+--- 
+
+--- # Transparency proxy policy (assuming the claims made by proxy.dev are sufficiently audited to be trustworthy)
+cty: delegation
+issuer: proxy.dev
+feed: fetch-policy
+payload: 
+  authorization: fetch-registration-script
+    # we also verify that the claim to be registered is of the form above
+    # with a recent timestamp and a URI that has not yet been registered.
+  sev-snp-policy: ... 
+  uvm-policy: ... 
+  config-input: # to be matched against the config claim payload
+    config: json-input # abstract configuration selected 
+    container-image-policy: 
+      [ [ cty: container image, issuer: proxy.dev, feed: parmaregistry/proxy? ],
+        [ cty: container image, issuer: parma.dev, feed: parmaregistry/envoy ],
+        [ cty: container image, issuer: parma.dev, feed: parmaregistry/issuer ] ]   
+  config-issuance-policy: ... 
+  env:
+    script: accept TLS connections 
+    proxy: # envoy config
+---
+# The overhead for each registration request is quite high: if we are stateless, we will end up verifying 
+# the same receipts { proxy UVM, proxy delegation, proxy config, config UVM, config delegation, config config }
+# whereas caching requires a generalized policy that returns TTLs. 
+# Note also that the uniqueness check requires correct freshness.  

@@ -1,0 +1,18 @@
+{
+    "metadata": {
+        "name": "transparency-init"
+    },
+    "image": {
+        "image": "parmaregistry.azurecr.io/transparency-init"
+    },
+    "linux": {
+        "security_context": {
+            "privileged": true
+        }
+    },
+    "mounts": [],
+    "command": [
+        "/bin/sh",
+        "setup-iptables.sh"
+    ]
+}

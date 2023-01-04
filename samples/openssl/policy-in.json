@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "containers": [
+    {
+      "containerImage": "parmaregistry.azurecr.io/openssl-sample:latest",
+      "command": [
+        "/bin/bash",
+        "run.sh"
+      ],
+      "environmentVariables": []
+    }
+  ]
+}

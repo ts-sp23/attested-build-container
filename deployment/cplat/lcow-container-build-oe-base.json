@@ -1,0 +1,40 @@
+{
+    "metadata": {
+        "name": "transparent-build"
+    },
+    "image": {
+        "image": "parmaregistry.azurecr.io/transparent-build"
+    },
+    "linux": {
+        "security_context": {
+            "privileged": true
+        }
+    },
+    "envs": [
+        {
+            "key": "GITHUB_REPO",
+            "value": "github.com/ad-l/openenclave"
+        },
+        {
+            "key": "BUILD_DIR",
+            "value": "attested_build"
+        },
+        {
+            "key": "CONTEXT_DIR",
+            "value": "../scripts"
+        },
+        {
+            "key": "DOCKER_FILE",
+            "value": "Dockerfile.base"
+        },
+        {
+            "key": "TARGET",
+            "value": "oe-base"
+        }
+    ],
+    "command": [
+        "/bin/sh",
+        "-c",
+        "run.sh"
+    ]
+}

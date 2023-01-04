@@ -1,0 +1,22 @@
+# Outer container that builds a container image based on Dockerfile
+FROM docker:20.10.20-dind-alpine3.16
+RUN apk add curl git 
+
+# docker defaults to using the vfs storage driver on UVM since overlay2 is not available
+# vfs is however slow and uses lots of disk space (no COW)
+# Although fuse-overlayfs is meant for rootless containers, it does work for UVM
+RUN apk add fuse-overlayfs
+
+# Required for building triton
+RUN apk add python3 py3-pip
+RUN pip3 install docker
+
+# Install proxy certificate
+COPY mitmproxy-ca-cert.crt /usr/local/share/ca-certificates
+RUN cat /usr/local/share/ca-certificates/mitmproxy-ca-cert.crt >> /etc/ssl/certs/ca-certificates.crt
+
+RUN mkdir build 
+WORKDIR /build
+COPY ./run.sh run.sh
+
+ENTRYPOINT [ "/bin/sh" ]
